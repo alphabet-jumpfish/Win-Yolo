@@ -162,7 +162,7 @@ class ScreenDetector:
 
                 # 在图像上显示FPS和检测到的人物数量
                 num_detections = len(results.boxes)
-                name_detections = results.boxes.names[num_detections]
+                name_detections = self.model.names[num_detections]
                 cv2.putText(annotated_img, f'FPS: {fps}', (10, 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 cv2.putText(annotated_img, f'{name_detections}: {num_detections}', (10, 70),
