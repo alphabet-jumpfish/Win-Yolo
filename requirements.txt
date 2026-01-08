@@ -1,0 +1,19 @@
+# YOLO 实时屏幕检测程序依赖
+
+# YOLOv8 核心库
+ultralytics>=8.0.0
+
+# 计算机视觉库
+opencv-python>=4.8.0
+
+# 数值计算
+numpy>=1.24.0
+
+# 图像处理
+pillow>=10.0.0
+
+# 屏幕截图库
+mss>=9.0.0
+
+# 鼠标控制库
+pyautogui>=0.9.53

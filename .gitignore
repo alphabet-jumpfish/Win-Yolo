@@ -4,7 +4,8 @@ __pycache__/
 *$py.class
 
 # 去掉模型
-
+/models
+/training
 # --- C 扩展 ---
 *.so
 
