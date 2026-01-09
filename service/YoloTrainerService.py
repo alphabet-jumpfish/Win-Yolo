@@ -101,87 +101,6 @@ class YOLOTrainer:
         print(f"数据集配置文件已创建: {yaml_path}")
         return yaml_path
 
-    def collect_screenshots(self, num_images=100, interval=1.0):
-        """
-        从屏幕收集训练图像
-        :param num_images: 要收集的图像数量
-        :param interval: 截图间隔（秒）
-        """
-        import cv2
-        import time
-        from mss import mss
-
-        print(f"开始收集 {num_images} 张屏幕截图...")
-        print("按 'q' 键停止收集")
-
-        sct = mss()
-        monitor = sct.monitors[1]
-        collected = 0
-
-        try:
-            while collected < num_images:
-                # 捕获屏幕
-                screenshot = sct.grab(monitor)
-                img = np.array(screenshot)
-                img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-
-                # 保存图像
-                img_path = self.train_images_dir / f'screen_{collected:04d}.jpg'
-                cv2.imwrite(str(img_path), img)
-
-                collected += 1
-                print(f"已收集: {collected}/{num_images}")
-
-                # 显示预览
-                preview = cv2.resize(img, (800, 450))
-                cv2.imshow('Collecting Screenshots - Press Q to stop', preview)
-
-                if cv2.waitKey(int(interval * 1000)) & 0xFF == ord('q'):
-                    break
-
-                time.sleep(interval)
-
-        finally:
-            cv2.destroyAllWindows()
-            print(f"收集完成！共收集 {collected} 张图像")
-            print(f"图像保存在: {self.train_images_dir}")
-
-    def auto_label_images(self, pretrained_model='yolov8n.pt', conf_threshold=0.5):
-        """
-        使用预训练模型自动标注图像
-        :param pretrained_model: 预训练模型路径
-        :param conf_threshold: 置信度阈值
-        """
-        print("开始自动标注图像...")
-        model = YOLO(pretrained_model)
-
-        # 获取所有训练图像
-        image_files = list(self.train_images_dir.glob('*.jpg')) + \
-                      list(self.train_images_dir.glob('*.png'))
-
-        labeled_count = 0
-        for img_path in image_files:
-            # 进行检测
-            results = model(str(img_path), conf=conf_threshold, classes=0, verbose=False)
-
-            # 创建对应的标签文件
-            label_path = self.train_labels_dir / f'{img_path.stem}.txt'
-
-            with open(label_path, 'w') as f:
-                for box in results[0].boxes:
-                    # 获取归一化的边界框坐标
-                    x_center, y_center, width, height = box.xywhn[0].cpu().numpy()
-                    class_id = 0  # person类别
-
-                    # 写入YOLO格式标签
-                    f.write(f"{class_id} {x_center} {y_center} {width} {height}\n")
-
-            labeled_count += 1
-            print(f"已标注: {labeled_count}/{len(image_files)}")
-
-        print(f"自动标注完成！共标注 {labeled_count} 张图像")
-        print(f"标签保存在: {self.train_labels_dir}")
-
     def split_dataset(self, val_ratio=0.2):
         """
         将数据集分割为训练集和验证集
@@ -298,7 +217,9 @@ class YOLOTrainer:
             x, y, w, h = cv2.boundingRect(contour)
 
             # 过滤太小的框（可能是噪声）
-            if w > 20 and h > 20:
+            # 同时检查宽度、高度和面积
+            area = w * h
+            if area > 1000 and w > 20 and h > 20:
                 boxes.append((x, y, x + w, y + h))
 
         return boxes
