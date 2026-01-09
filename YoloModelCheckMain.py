@@ -12,8 +12,8 @@ if __name__ == '__main__':
 
     check = YoloModelCheck()
 
-    # 1. 显示训练指标
-    check.show_training_metrics(model_path=model_path)
+    # 1. 从 .pt 文件直接读取训练指标
+    check.show_model_metrics_from_pt(model_path=model_path)
 
     print("\n")
 
