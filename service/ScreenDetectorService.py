@@ -99,9 +99,20 @@ class ScreenDetector:
 
             # 如果这个人物还没有被处理过，移动鼠标
             if person_id not in self.processed_persons:
-                pyautogui.moveTo(head_x, head_y, duration=0.2)
-                self.processed_persons.add(person_id)
-                print(f"鼠标移动到人物头部位置: ({head_x}, {head_y})")
+                # 获取屏幕尺寸并限制坐标范围
+                screen_width = self.monitor['width']
+                screen_height = self.monitor['height']
+
+                # 确保坐标在屏幕范围内
+                head_x = max(0, min(head_x, screen_width - 1))
+                head_y = max(0, min(head_y, screen_height - 1))
+
+                try:
+                    pyautogui.moveTo(head_x, head_y, duration=0.2)
+                    self.processed_persons.add(person_id)
+                    print(f"鼠标移动到人物头部位置: ({head_x}, {head_y})")
+                except Exception as e:
+                    print(f"鼠标移动失败: {e}")
                 break  # 每次只移动到一个新人物
 
     def run(self, conf_threshold=0.5, display_scale=0.6):
@@ -160,12 +171,20 @@ class ScreenDetector:
                     fps_counter = 0
                     fps_time = time.time()
 
-                # 在图像上显示FPS和检测到的人物数量
+                # 在图像上显示FPS和检测到的目标数量
                 num_detections = len(results.boxes)
-                name_detections = self.model.names[num_detections]
+
+                # 获取检测到的类别名称（如果有检测结果）
+                if num_detections > 0:
+                    # 获取第一个检测到的类别ID
+                    first_class_id = int(results.boxes[0].cls[0].cpu().numpy())
+                    detection_label = self.model.names[first_class_id]
+                else:
+                    detection_label = "Objects"
+
                 cv2.putText(annotated_img, f'FPS: {fps}', (10, 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                cv2.putText(annotated_img, f'{name_detections}: {num_detections}', (10, 70),
+                cv2.putText(annotated_img, f'{detection_label}: {num_detections}', (10, 70),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
                 # 缩放图像以适应显示

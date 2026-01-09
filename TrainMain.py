@@ -17,7 +17,7 @@ def main():
     class_names = ['warZ']  # 自定义训练类别
 
     # 自定义项目名称（训练结果会保存在 training/{project_name} 目录下）
-    project_name = 'warZ_model'  # 可以自定义为任意名称
+    project_name = 'warZ'  # 可以自定义为任意名称
 
     # 是否保留基础模型的原有类别
     # False: 只训练新类别（推荐，新类别ID从0开始）

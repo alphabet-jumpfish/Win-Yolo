@@ -9,12 +9,7 @@ def main():
 
     # ========== 模型配置 ==========
     # 选项1: 使用预训练模型（COCO数据集，80个类别）
-    # model_name = 'best.pt'
-
-    # 选项2: 使用自定义训练的模型
-    model_name = 'training/warZ/runs/train/weights/best.pt'
-    # model_name = 'models/yolov8n.pt'
-
+    model_name = 'best.pt'
 
     # ========== 检测类别配置 ==========
     # 预训练模型（COCO数据集）：
