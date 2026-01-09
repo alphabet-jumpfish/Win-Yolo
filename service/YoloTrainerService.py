@@ -17,7 +17,8 @@ class YOLOTrainer:
     用于训练自定义的人物检测模型
     """
 
-    def __init__(self, project_name='person_detection', base_model='yolov8n.pt', path='./training'):
+    def __init__(self, project_name='person_detection', base_model='yolov8n.pt', model_dir='./models',
+                 path='./training'):
         """
         初始化训练器
         :param project_name: 项目名称
@@ -25,10 +26,14 @@ class YOLOTrainer:
         """
         self.project_name = project_name
         self.base_model = base_model
+        self.mode_dir = model_dir
+
+        # 设置模型路径
+        self.model_path = self.model_dir / base_model
 
         # 加载基础模型以获取原有类别
-        print(f"正在加载基础模型: {base_model}")
-        base_model_obj = YOLO(base_model)
+        print(f"正在加载基础模型: {self.model_path}")
+        base_model_obj = YOLO(str(self.model_path))
         self.base_model_classes = list(base_model_obj.names.values())
         print(f"基础模型包含 {len(self.base_model_classes)} 个类别")
 
@@ -92,7 +97,6 @@ class YOLOTrainer:
             'nc': len(class_names),
             'names': class_names
         }
-        
 
         yaml_path = self.dataset_dir / 'data.yaml'
         with open(yaml_path, 'w', encoding='utf-8') as f:
@@ -156,7 +160,7 @@ class YOLOTrainer:
             yaml_path = self.create_dataset_yaml()
 
         # 加载基础模型
-        model = YOLO(self.base_model)
+        model = YOLO(str(self.model_path))
 
         # 开始训练
         results = model.train(
@@ -178,7 +182,7 @@ class YOLOTrainer:
 
     def detect_red_boxes(self, image_path):
         """
-        检测图像中的红色框框
+        检测图像中的红色框框（空心矩形框）
         :param image_path: 图像路径
         :return: 检测到的边界框列表 [(x1, y1, x2, y2), ...]
         """
@@ -217,10 +221,24 @@ class YOLOTrainer:
             x, y, w, h = cv2.boundingRect(contour)
 
             # 过滤太小的框（可能是噪声）
-            # 同时检查宽度、高度和面积
             area = w * h
-            if area > 1000 and w > 20 and h > 20:
-                boxes.append((x, y, x + w, y + h))
+            if area < 2000 or w < 30 or h < 30:
+                continue
+
+            # 计算轮廓面积与边界框面积的比例
+            contour_area = cv2.contourArea(contour)
+            fill_ratio = contour_area / area if area > 0 else 0
+
+            # 只保留空心框（填充率低）和近似矩形的轮廓
+            # 空心框的填充率通常 < 0.3，实心区域 > 0.7
+            if fill_ratio < 0.4:
+                # 进一步检查是否为矩形（使用多边形近似）
+                epsilon = 0.02 * cv2.arcLength(contour, True)
+                approx = cv2.approxPolyDP(contour, epsilon, True)
+
+                # 矩形应该有4个顶点
+                if len(approx) >= 4:
+                    boxes.append((x, y, x + w, y + h))
 
         return boxes
 
@@ -274,7 +292,8 @@ class YOLOTrainer:
         print(f"转换完成！共处理 {converted_count} 张图像，生成 {total_boxes} 个标签")
         print(f"标签保存在: {self.train_labels_dir}")
 
-    def train_with_red_box_annotations(self, epochs=50, val_ratio=0.2, imgsz=640, batch=16, device='cpu', class_names=None, keep_base_classes=False):
+    def train_with_red_box_annotations(self, epochs=50, val_ratio=0.2, imgsz=640, batch=16, device='cpu',
+                                       class_names=None, keep_base_classes=False):
         """
         使用红色框框标注的数据进行完整训练流程
         :param epochs: 训练轮数

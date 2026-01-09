@@ -32,10 +32,12 @@ def main():
     # 步骤1: 创建训练器
     print("\n创建训练器...")
     path = os.path.dirname(__file__) + '/training'
-    base_model_path = os.path.dirname(__file__) + '/models/'
+    base_model = 'yolo11n.pt'
+    model_dir = os.path.dirname(__file__) + '/models'
     trainer = YOLOTrainer(
         project_name=project_name,  # 使用自定义项目名称
-        base_model=base_model_path + 'yolo11n.pt',
+        base_model=base_model,
+        model_dir=model_dir,
         path=path
     )
 
