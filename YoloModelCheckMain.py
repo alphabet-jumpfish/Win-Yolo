@@ -6,6 +6,7 @@ from service.YoloModelCheckService import YoloModelCheck
 
 if __name__ == '__main__':
     model_path = 'training/warZ/runs/train/weights/best.pt'
+    # model_path = 'models/yolov8n.pt'
     # 测试图像目录
     test_image_dir = r"C:\Users\wangjiawen\Pictures\Screenshots"
 
