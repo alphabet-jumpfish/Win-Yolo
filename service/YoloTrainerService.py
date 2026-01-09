@@ -226,15 +226,6 @@ class YOLOTrainer:
             if area < 2000 or w < 30 or h < 30:
                 continue
 
-            # 计算轮廓面积与边界框面积的比例
-            contour_area = cv2.contourArea(contour)
-            fill_ratio = contour_area / area if area > 0 else 0
-
-            # 过滤实心区域（填充率很高的）
-            # 空心框的填充率通常 0.1-0.6，实心区域 > 0.8
-            if fill_ratio > 0.85:
-                continue
-
             # 检查是否为近似矩形
             epsilon = 0.04 * cv2.arcLength(contour, True)
             approx = cv2.approxPolyDP(contour, epsilon, True)
