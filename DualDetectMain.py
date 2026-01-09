@@ -2,7 +2,7 @@
 双模型检测示例
 同时使用预训练模型和自定义模型进行检测
 """
-from service.DualModelDetector import DualModelDetector
+from service.DualModelDetectorService import DualModelDetector
 import os
 
 

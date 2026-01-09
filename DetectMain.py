@@ -9,10 +9,10 @@ def main():
 
     # ========== 模型配置 ==========
     # 选项1: 使用预训练模型（COCO数据集，80个类别）
-    model_name = 'best.pt'
+    # model_name = 'best.pt'
 
     # 选项2: 使用自定义训练的模型
-    # model_name = 'training/warZ/runs/train/weights/best.pt'
+    model_name = 'training/warZ/runs/train/weights/best.pt'
 
     # ========== 检测类别配置 ==========
     # 预训练模型（COCO数据集）：
@@ -28,7 +28,7 @@ def main():
     detect_classes = [0]  # 默认只检测第一个类别
 
     # 初始化检测器
-    from service.ScreenDetector import ScreenDetector
+    from service.ScreenDetectorService import ScreenDetector
     model_dirs = os.path.dirname(__file__) + '/models'
     detector = ScreenDetector(
         model_name=model_name,

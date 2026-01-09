@@ -1,4 +1,4 @@
-from service.YoloTrainer import YOLOTrainer
+from service.YoloTrainerService import YOLOTrainer
 import os
 
 
@@ -67,7 +67,7 @@ def main():
 
     # 使用红色框框标注数据进行训练
     results = trainer.train_with_red_box_annotations(
-        epochs=50,  # 训练轮数
+        epochs=100,  # 训练轮数
         val_ratio=0.2,  # 验证集比例（20%）
         imgsz=640,  # 图像大小
         batch=16,  # 批次大小

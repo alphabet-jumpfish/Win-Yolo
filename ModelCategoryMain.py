@@ -1,4 +1,4 @@
-from service.ModelClassInspector import ModelClassInspector
+from service.ModelClassInspectorService import ModelClassInspector
 import os
 
 
