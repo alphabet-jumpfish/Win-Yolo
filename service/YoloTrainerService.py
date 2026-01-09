@@ -171,7 +171,8 @@ class YOLOTrainer:
             device=device,
             project=str(self.project_dir / 'runs'),
             name='train',
-            exist_ok=True
+            exist_ok=True,
+            amp=False  # 禁用自动混合精度训练，避免AMP检查下载模型
         )
 
         print("=" * 50)
