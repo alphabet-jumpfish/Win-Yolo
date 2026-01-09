@@ -230,16 +230,18 @@ class YOLOTrainer:
             contour_area = cv2.contourArea(contour)
             fill_ratio = contour_area / area if area > 0 else 0
 
-            # 只保留空心框（填充率低）和近似矩形的轮廓
-            # 空心框的填充率通常 < 0.3，实心区域 > 0.7
-            if fill_ratio < 0.4:
-                # 进一步检查是否为矩形（使用多边形近似）
-                epsilon = 0.02 * cv2.arcLength(contour, True)
-                approx = cv2.approxPolyDP(contour, epsilon, True)
+            # 过滤实心区域（填充率很高的）
+            # 空心框的填充率通常 0.1-0.6，实心区域 > 0.8
+            if fill_ratio > 0.85:
+                continue
 
-                # 矩形应该有4个顶点
-                if len(approx) >= 4:
-                    boxes.append((x, y, x + w, y + h))
+            # 检查是否为近似矩形
+            epsilon = 0.04 * cv2.arcLength(contour, True)
+            approx = cv2.approxPolyDP(contour, epsilon, True)
+
+            # 矩形应该有4个顶点左右
+            if 4 <= len(approx) <= 8:
+                boxes.append((x, y, x + w, y + h))
 
         return boxes
 
