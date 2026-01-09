@@ -1,6 +1,7 @@
 from ultralytics import YOLO
 import cv2
 import os
+from pathlib import Path
 
 
 class YoloModelCheck:
@@ -8,6 +9,95 @@ class YoloModelCheck:
     YOLO 模型检查类
     用于检查训练好的模型是否能正确检测目标
     """
+
+    def show_training_metrics(self, model_path):
+        """
+        显示模型的训练指标
+        :param model_path: 模型路径，如 'training/warZ/runs/train/weights/best.pt'
+        """
+        print("=" * 60)
+        print("模型训练指标分析")
+        print("=" * 60)
+
+        # 从模型路径推断训练结果目录
+        model_path = Path(model_path)
+        train_dir = model_path.parent.parent  # 从 weights/best.pt 回到 train 目录
+
+        results_csv = train_dir / 'results.csv'
+
+        if not results_csv.exists():
+            print(f"\n错误：找不到训练结果文件: {results_csv}")
+            return
+
+        # 读取 CSV 文件
+        with open(results_csv, 'r') as f:
+            lines = f.readlines()
+
+        if len(lines) < 2:
+            print("\n错误：训练结果文件为空")
+            return
+
+        # 解析表头
+        headers = [h.strip() for h in lines[0].split(',')]
+        # 解析最后一行数据
+        last_line = lines[-1].strip().split(',')
+
+        # 创建字典
+        metrics = {}
+        for i, header in enumerate(headers):
+            if i < len(last_line):
+                try:
+                    metrics[header] = float(last_line[i])
+                except:
+                    metrics[header] = last_line[i]
+
+        print(f"\n训练轮数: {int(metrics.get('epoch', 0)) + 1}")
+        print("\n最终训练指标:")
+        print("-" * 60)
+
+        # 显示关键指标
+        precision = metrics.get('metrics/precision(B)', 0)
+        recall = metrics.get('metrics/recall(B)', 0)
+        mAP50 = metrics.get('metrics/mAP50(B)', 0)
+        mAP50_95 = metrics.get('metrics/mAP50-95(B)', 0)
+
+        print(f"Precision (精确度):  {precision:.5f} ({precision*100:.2f}%)")
+        print(f"Recall (召回率):     {recall:.5f} ({recall*100:.2f}%)")
+        print(f"mAP50:               {mAP50:.5f} ({mAP50*100:.2f}%)")
+        print(f"mAP50-95:            {mAP50_95:.5f} ({mAP50_95*100:.2f}%)")
+
+        print("\n" + "-" * 60)
+        print("指标说明:")
+        print("  Precision: 检测出的目标中有多少是正确的")
+        print("  Recall:    实际目标中有多少被检测出来")
+        print("  mAP50:     在IoU=0.5时的平均精度")
+        print("  mAP50-95:  在IoU=0.5-0.95时的平均精度")
+
+        print("\n" + "-" * 60)
+        print("质量评估:")
+
+        if precision < 0.3:
+            print("  Precision 过低 (<30%) - 模型误检太多")
+        elif precision < 0.6:
+            print("  Precision 一般 (30-60%) - 需要改进")
+        else:
+            print("  Precision 良好 (>60%)")
+
+        if recall < 0.3:
+            print("  Recall 过低 (<30%) - 模型漏检太多")
+        elif recall < 0.6:
+            print("  Recall 一般 (30-60%) - 需要改进")
+        else:
+            print("  Recall 良好 (>60%)")
+
+        if mAP50 < 0.3:
+            print("  mAP50 过低 (<30%) - 模型效果很差")
+        elif mAP50 < 0.6:
+            print("  mAP50 一般 (30-60%) - 需要改进")
+        else:
+            print("  mAP50 良好 (>60%)")
+
+        print("\n" + "=" * 60)
 
     def model_detect_pictures(self, model_path, test_image_dir):
         print("=" * 60)
