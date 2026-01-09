@@ -13,6 +13,8 @@ def main():
 
     # 选项2: 使用自定义训练的模型
     model_name = 'training/warZ/runs/train/weights/best.pt'
+    # model_name = 'models/yolov8n.pt'
+
 
     # ========== 检测类别配置 ==========
     # 预训练模型（COCO数据集）：
