@@ -26,14 +26,14 @@ class YOLOTrainer:
         """
         self.project_name = project_name
         self.base_model = base_model
-        self.mode_dir = model_dir
+        self.model_dir = model_dir
 
         # 设置模型路径
-        self.model_path = self.model_dir / base_model
-
+        load_model_path = Path(model_dir) / base_model
+        self.model_path = load_model_path
         # 加载基础模型以获取原有类别
         print(f"正在加载基础模型: {self.model_path}")
-        base_model_obj = YOLO(str(self.model_path))
+        base_model_obj = YOLO(str(load_model_path))
         self.base_model_classes = list(base_model_obj.names.values())
         print(f"基础模型包含 {len(self.base_model_classes)} 个类别")
 
