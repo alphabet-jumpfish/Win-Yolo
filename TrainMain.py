@@ -35,7 +35,7 @@ def main():
     base_model_path = os.path.dirname(__file__) + '/models/'
     trainer = YOLOTrainer(
         project_name=project_name,  # 使用自定义项目名称
-        base_model=base_model_path + 'yolov8n.pt',
+        base_model=base_model_path + 'yolo11n.pt',
         path=path
     )
 
