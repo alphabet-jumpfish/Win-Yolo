@@ -324,6 +324,7 @@ class YOLOTrainer:
 
         # 步骤1: 从红色框框生成YOLO标签
         print("\n步骤 1/4: 从红色框框生成YOLO标签")
+        # TODO 还需优化 没法很准确的生成
         self.convert_red_boxes_to_yolo_labels(target_class_id=new_class_start_id)
 
         # 步骤2: 分割数据集
