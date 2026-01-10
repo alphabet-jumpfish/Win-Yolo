@@ -52,8 +52,8 @@ class YOLOTrainer:
         self.images_label_service = YoloImageLableService(
             train_images_dir=self.train_images_dir,
             train_labels_dir=self.train_labels_dir,
-            val_images_dir=self.images_dir,
-            val_labels_dir=self.labels_dir)
+            val_images_dir=self.val_images_dir,
+            val_labels_dir=self.val_labels_dir)
 
         print(f"训练项目已创建: {self.project_dir.absolute()}")
 
