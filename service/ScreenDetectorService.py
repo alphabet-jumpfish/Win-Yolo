@@ -48,10 +48,12 @@ class ScreenDetector:
         self.last_lock_time = 0  # 上次锁定时间
 
         # 自动开火相关变量
-        self.auto_fire_enabled = False  # 自动开火开关
-        self.fire_rate = 2  # 每秒开火次数
+        self.auto_fire_enabled = False  # 自动开火开关（同时控制自动移动）
+        self.fire_rate = 1  # 每秒开火次数（改为1次）
         self.last_fire_time = 0  # 上次开火时间
         self.is_locked_on_target = False  # 是否锁定在目标上
+        self.mouse_in_target_range = False  # 鼠标是否在目标范围内
+        self.target_range_threshold = 50  # 目标范围阈值（像素）
 
         # 禁用 pyautogui 的安全暂停
         pyautogui.PAUSE = 0
@@ -69,34 +71,60 @@ class ScreenDetector:
     def smooth_move_mouse(self, target_x, target_y, duration=0.3):
         """
         平滑移动鼠标到目标位置
+        使用多种方法确保在游戏中也能工作
         :param target_x: 目标X坐标
         :param target_y: 目标Y坐标
         :param duration: 移动持续时间（秒）
         """
         try:
-            # 使用 pyautogui 的缓动函数实现平滑移动
+            # 方法1：使用 pyautogui（适用于大多数应用）
             pyautogui.moveTo(target_x, target_y, duration=duration, tween=pyautogui.easeInOutQuad)
+            print("[鼠标移动检查] 鼠标使用pyautogui")
+
+            # 方法2：使用 win32api（适用于游戏）
+            try:
+                import win32api
+                import win32con
+                # 直接设置鼠标位置
+                win32api.SetCursorPos((target_x, target_y))
+                print("[鼠标移动检查] 鼠标使用win32api")
+            except ImportError:
+                pass  # 如果没有安装 win32api，跳过
+
         except Exception as e:
             print(f"鼠标移动失败: {e}")
 
     def auto_fire(self):
         """
         自动开火功能
-        根据设置的开火速率自动点击鼠标左键
+        只有在鼠标在目标范围内且自动开火开启时才开火
         """
-        if not self.auto_fire_enabled or not self.is_locked_on_target:
+        # 检查是否有目标
+        if not self.is_locked_on_target:
+            # print("[开火检查] 未检测到目标，开火未触发")
             return
 
+        # 检查鼠标是否在目标范围内
+        if not self.mouse_in_target_range:
+            print("[开火检查] 鼠标不在目标范围内，开火未触发")
+            return
+
+        # 检查自动开火是否开启
+        if not self.auto_fire_enabled:
+            print("[开火检查] 鼠标在目标范围内，但自动开火未开启，开火未触发")
+            return
+
+        # 检查开火间隔
         current_time = time.time()
         fire_interval = 1.0 / self.fire_rate  # 计算开火间隔
 
-        # 检查是否到了开火时间
         if current_time - self.last_fire_time >= fire_interval:
             try:
                 pyautogui.click()
                 self.last_fire_time = current_time
+                print("[自动开火] ✓ 开火！")
             except Exception as e:
-                print(f"自动开火失败: {e}")
+                print(f"[自动开火] ✗ 开火失败: {e}")
 
     def detect_objects(self, img, conf_threshold=0.5):
         """
@@ -118,12 +146,13 @@ class ScreenDetector:
 
     def move_mouse_to_person(self, results):
         """
-        一直锁定最近的目标（距离屏幕中心最近）
-        鼠标平滑移动
+        检测目标并判断鼠标是否在目标范围内
         :param results: YOLO检测结果
         """
+        # 没有检测到目标
         if len(results.boxes) == 0:
-            self.is_locked_on_target = False  # 没有目标，取消锁定状态
+            self.is_locked_on_target = False
+            self.mouse_in_target_range = False
             return
 
         # 获取屏幕中心点
@@ -132,6 +161,7 @@ class ScreenDetector:
 
         # 找到距离屏幕中心最近的目标
         closest_target = None
+        closest_box = None
         min_distance = float('inf')
 
         for box in results.boxes:
@@ -148,28 +178,60 @@ class ScreenDetector:
             if distance < min_distance:
                 min_distance = distance
                 closest_target = (head_x, head_y)
-
-        # 获取屏幕尺寸并限制坐标范围
-        screen_width = self.monitor['width']
-        screen_height = self.monitor['height']
+                closest_box = (int(x1), int(y1), int(x2), int(y2))
 
         # 如果找到了最近的目标
-        if closest_target is not None:
+        if closest_target is not None and closest_box is not None:
             target_x, target_y = closest_target
+            box_x1, box_y1, box_x2, box_y2 = closest_box
 
-            # 确保坐标在屏幕范围内
-            target_x = max(0, min(target_x, screen_width - 1))
-            target_y = max(0, min(target_y, screen_height - 1))
+            # 打印目标信息
+            print(f"\n[目标检测] 检测到目标")
+            print(f"  目标位置: ({target_x}, {target_y})")
+            print(f"  目标框范围: ({box_x1}, {box_y1}) -> ({box_x2}, {box_y2})")
 
-            # 平滑移动鼠标到目标位置
-            self.smooth_move_mouse(target_x, target_y, duration=0.1)
+            # 获取当前鼠标位置
+            current_mouse_x, current_mouse_y = pyautogui.position()
+            print(f"  当前鼠标位置: ({current_mouse_x}, {current_mouse_y})")
 
-            # 标记为已锁定目标
+            # 判断鼠标是否在目标检测框范围内
+            # 使用扩展的范围（目标框 + 阈值）
+            extended_x1 = box_x1 - self.target_range_threshold
+            extended_y1 = box_y1 - self.target_range_threshold
+            extended_x2 = box_x2 + self.target_range_threshold
+            extended_y2 = box_y2 + self.target_range_threshold
+
+            if (extended_x1 <= current_mouse_x <= extended_x2 and
+                extended_y1 <= current_mouse_y <= extended_y2):
+                self.mouse_in_target_range = True
+                print(f"  [判断] ✓ 鼠标在目标范围内")
+            else:
+                self.mouse_in_target_range = False
+                print(f"  [判断] ✗ 鼠标不在目标范围内")
+
+                # 检查自动移动是否开启（由K键控制）
+                if self.auto_fire_enabled:
+                    print(f"  [自动移动] 正在移动鼠标到目标位置...")
+
+                    # 自动移动鼠标到目标位置
+                    self.smooth_move_mouse(target_x, target_y, duration=0.2)
+
+                    # 移动后重新检查
+                    current_mouse_x, current_mouse_y = pyautogui.position()
+                    if (extended_x1 <= current_mouse_x <= extended_x2 and
+                        extended_y1 <= current_mouse_y <= extended_y2):
+                        self.mouse_in_target_range = True
+                        print(f"  [自动移动] ✓ 鼠标已移动到目标范围内")
+                    else:
+                        print(f"  [自动移动] ✗ 移动后仍不在目标范围内")
+                else:
+                    print(f"  [自动移动] 自动移动未开启（按K键开启）")
+
             self.is_locked_on_target = True
 
-            # print(f"锁定最近目标: ({target_x}, {target_y}), 距离: {min_distance:.1f}")
         else:
             self.is_locked_on_target = False
+            self.mouse_in_target_range = False
 
     def run(self, conf_threshold=0.5, display_scale=0.6):
         """
@@ -179,7 +241,7 @@ class ScreenDetector:
         """
         print("开始实时人物检测...")
         print("按 'q' 键暂停/恢复程序")
-        print("按 'k' 键开启/关闭自动开火")
+        print("按 'k' 键开启/关闭自动瞄准+自动开火")
         print("按 'ESC' 键退出程序")
 
         fps_time = time.time()
@@ -201,13 +263,13 @@ class ScreenDetector:
                     else:
                         print("程序已恢复")
 
-                # 按 'k' 键切换自动开火
+                # 按 'k' 键切换自动瞄准+自动开火
                 elif key == ord('k'):
                     self.auto_fire_enabled = not self.auto_fire_enabled
                     if self.auto_fire_enabled:
-                        print("自动开火已开启 [每秒2次]")
+                        print("✓ 自动瞄准+自动开火已开启 [每秒1次]")
                     else:
-                        print("自动开火已关闭")
+                        print("✗ 自动瞄准+自动开火已关闭")
 
                 # 按 ESC 键退出
                 elif key == 27:  # ESC键
@@ -255,10 +317,10 @@ class ScreenDetector:
                 cv2.putText(annotated_img, f'{detection_label}: {num_detections}', (10, 70),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-                # 显示自动开火状态
+                # 显示自动瞄准+开火状态
                 fire_status = "ON" if self.auto_fire_enabled else "OFF"
                 fire_color = (0, 255, 0) if self.auto_fire_enabled else (0, 0, 255)
-                cv2.putText(annotated_img, f'Auto Fire [K]: {fire_status}', (10, 110),
+                cv2.putText(annotated_img, f'Auto Aim+Fire [K]: {fire_status}', (10, 110),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, fire_color, 2)
 
                 # 缩放图像以适应显示
