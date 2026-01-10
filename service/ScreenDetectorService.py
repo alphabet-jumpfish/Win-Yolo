@@ -42,8 +42,10 @@ class ScreenDetector:
         # 获取主显示器的尺寸
         self.monitor = self.sct.monitors[1]
 
-        # 用于跟踪已移动鼠标的人物位置，避免重复移动
-        self.processed_persons = set()
+        # 循环锁定相关变量
+        self.current_target_index = 0  # 当前锁定的目标索引
+        self.lock_interval = 0.5  # 锁定间隔时间（秒）
+        self.last_lock_time = 0  # 上次锁定时间
 
         # 禁用 pyautogui 的安全暂停
         pyautogui.PAUSE = 0
@@ -57,6 +59,19 @@ class ScreenDetector:
         # 转换颜色格式 BGRA -> BGR
         img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
         return img
+
+    def smooth_move_mouse(self, target_x, target_y, duration=0.3):
+        """
+        平滑移动鼠标到目标位置
+        :param target_x: 目标X坐标
+        :param target_y: 目标Y坐标
+        :param duration: 移动持续时间（秒）
+        """
+        try:
+            # 使用 pyautogui 的缓动函数实现平滑移动
+            pyautogui.moveTo(target_x, target_y, duration=duration, tween=pyautogui.easeInOutQuad)
+        except Exception as e:
+            print(f"鼠标移动失败: {e}")
 
     def detect_objects(self, img, conf_threshold=0.5):
         """
@@ -78,12 +93,20 @@ class ScreenDetector:
 
     def move_mouse_to_person(self, results):
         """
-        将鼠标移动到检测到的人物头部位置
-        每个人物只移动一次
+        一直锁定最近的目标（距离屏幕中心最近）
+        鼠标平滑移动
         :param results: YOLO检测结果
         """
         if len(results.boxes) == 0:
             return
+
+        # 获取屏幕中心点
+        screen_center_x = self.monitor['width'] // 2
+        screen_center_y = self.monitor['height'] // 2
+
+        # 找到距离屏幕中心最近的目标
+        closest_target = None
+        min_distance = float('inf')
 
         for box in results.boxes:
             # 获取边界框坐标 (x1, y1, x2, y2)
@@ -93,27 +116,29 @@ class ScreenDetector:
             head_x = int((x1 + x2) / 2)
             head_y = int(y1 + (y2 - y1) * 0.2)
 
-            # 创建唯一标识符（基于位置的粗略区域）
-            # 使用100像素的网格来判断是否是同一个人物
-            person_id = (head_x // 100, head_y // 100)
+            # 计算到屏幕中心的距离
+            distance = ((head_x - screen_center_x) ** 2 + (head_y - screen_center_y) ** 2) ** 0.5
 
-            # 如果这个人物还没有被处理过，移动鼠标
-            if person_id not in self.processed_persons:
-                # 获取屏幕尺寸并限制坐标范围
-                screen_width = self.monitor['width']
-                screen_height = self.monitor['height']
+            if distance < min_distance:
+                min_distance = distance
+                closest_target = (head_x, head_y)
 
-                # 确保坐标在屏幕范围内
-                head_x = max(0, min(head_x, screen_width - 1))
-                head_y = max(0, min(head_y, screen_height - 1))
+        # 获取屏幕尺寸并限制坐标范围
+        screen_width = self.monitor['width']
+        screen_height = self.monitor['height']
 
-                try:
-                    pyautogui.moveTo(head_x, head_y, duration=0.2)
-                    self.processed_persons.add(person_id)
-                    print(f"鼠标移动到人物头部位置: ({head_x}, {head_y})")
-                except Exception as e:
-                    print(f"鼠标移动失败: {e}")
-                break  # 每次只移动到一个新人物
+        # 如果找到了最近的目标
+        if closest_target is not None:
+            target_x, target_y = closest_target
+
+            # 确保坐标在屏幕范围内
+            target_x = max(0, min(target_x, screen_width - 1))
+            target_y = max(0, min(target_y, screen_height - 1))
+
+            # 平滑移动鼠标到目标位置
+            self.smooth_move_mouse(target_x, target_y, duration=0.1)
+
+            # print(f"锁定最近目标: ({target_x}, {target_y}), 距离: {min_distance:.1f}")
 
     def run(self, conf_threshold=0.5, display_scale=0.6):
         """
