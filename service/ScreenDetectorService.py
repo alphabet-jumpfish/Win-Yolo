@@ -47,6 +47,12 @@ class ScreenDetector:
         self.lock_interval = 0.5  # 锁定间隔时间（秒）
         self.last_lock_time = 0  # 上次锁定时间
 
+        # 自动开火相关变量
+        self.auto_fire_enabled = False  # 自动开火开关
+        self.fire_rate = 2  # 每秒开火次数
+        self.last_fire_time = 0  # 上次开火时间
+        self.is_locked_on_target = False  # 是否锁定在目标上
+
         # 禁用 pyautogui 的安全暂停
         pyautogui.PAUSE = 0
         pyautogui.FAILSAFE = False
@@ -73,6 +79,25 @@ class ScreenDetector:
         except Exception as e:
             print(f"鼠标移动失败: {e}")
 
+    def auto_fire(self):
+        """
+        自动开火功能
+        根据设置的开火速率自动点击鼠标左键
+        """
+        if not self.auto_fire_enabled or not self.is_locked_on_target:
+            return
+
+        current_time = time.time()
+        fire_interval = 1.0 / self.fire_rate  # 计算开火间隔
+
+        # 检查是否到了开火时间
+        if current_time - self.last_fire_time >= fire_interval:
+            try:
+                pyautogui.click()
+                self.last_fire_time = current_time
+            except Exception as e:
+                print(f"自动开火失败: {e}")
+
     def detect_objects(self, img, conf_threshold=0.5):
         """
         使用YOLO检测图像中的目标
@@ -98,6 +123,7 @@ class ScreenDetector:
         :param results: YOLO检测结果
         """
         if len(results.boxes) == 0:
+            self.is_locked_on_target = False  # 没有目标，取消锁定状态
             return
 
         # 获取屏幕中心点
@@ -138,7 +164,12 @@ class ScreenDetector:
             # 平滑移动鼠标到目标位置
             self.smooth_move_mouse(target_x, target_y, duration=0.1)
 
+            # 标记为已锁定目标
+            self.is_locked_on_target = True
+
             # print(f"锁定最近目标: ({target_x}, {target_y}), 距离: {min_distance:.1f}")
+        else:
+            self.is_locked_on_target = False
 
     def run(self, conf_threshold=0.5, display_scale=0.6):
         """
@@ -148,6 +179,7 @@ class ScreenDetector:
         """
         print("开始实时人物检测...")
         print("按 'q' 键暂停/恢复程序")
+        print("按 'k' 键开启/关闭自动开火")
         print("按 'ESC' 键退出程序")
 
         fps_time = time.time()
@@ -169,6 +201,14 @@ class ScreenDetector:
                     else:
                         print("程序已恢复")
 
+                # 按 'k' 键切换自动开火
+                elif key == ord('k'):
+                    self.auto_fire_enabled = not self.auto_fire_enabled
+                    if self.auto_fire_enabled:
+                        print("自动开火已开启 [每秒2次]")
+                    else:
+                        print("自动开火已关闭")
+
                 # 按 ESC 键退出
                 elif key == 27:  # ESC键
                     break
@@ -188,6 +228,9 @@ class ScreenDetector:
 
                 # 将鼠标移动到检测到的新人物位置
                 self.move_mouse_to_person(results)
+
+                # 自动开火（如果已开启）
+                self.auto_fire()
 
                 # 计算FPS
                 fps_counter += 1
@@ -211,6 +254,12 @@ class ScreenDetector:
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 cv2.putText(annotated_img, f'{detection_label}: {num_detections}', (10, 70),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+                # 显示自动开火状态
+                fire_status = "ON" if self.auto_fire_enabled else "OFF"
+                fire_color = (0, 255, 0) if self.auto_fire_enabled else (0, 0, 255)
+                cv2.putText(annotated_img, f'Auto Fire [K]: {fire_status}', (10, 110),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, fire_color, 2)
 
                 # 缩放图像以适应显示
                 height, width = annotated_img.shape[:2]
