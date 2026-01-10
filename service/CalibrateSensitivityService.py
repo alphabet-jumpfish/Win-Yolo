@@ -48,7 +48,7 @@ class SensitivityCalibrator:
         self.focal_length = (self.screen_width / 2) / math.tan(hfov_rad)
 
         # 测试参数
-        self.test_distances = [200, 400, 600]  # 测试的像素距离
+        self.test_distances = [30, 50, 100]  # 测试的像素距离
         self.calibration_results = []
 
         # 历史测试结果（用于综合测试）

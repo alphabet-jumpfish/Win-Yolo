@@ -177,19 +177,14 @@ class ScreenDetector:
 
     def _move_mouse_pixel_based(self, target_x, target_y, duration=0.3):
         """
-        直接像素平移模式（不使用角度校准）
+        直接像素平移模式（不使用角度校准，使用相对移动）
         :param target_x: 目标X坐标
         :param target_y: 目标Y坐标
         :param duration: 移动持续时间（秒）
         """
         try:
-            # 定义鼠标事件常量
+            # 定义鼠标事件常量（相对移动）
             MOUSEEVENTF_MOVE = 0x0001
-            MOUSEEVENTF_ABSOLUTE = 0x8000
-
-            # 获取屏幕尺寸
-            screen_width = ctypes.windll.user32.GetSystemMetrics(0)
-            screen_height = ctypes.windll.user32.GetSystemMetrics(1)
 
             # 获取当前鼠标位置
             current_x, current_y = pyautogui.position()
@@ -198,31 +193,27 @@ class ScreenDetector:
             delta_x = target_x - current_x
             delta_y = target_y - current_y
 
-            # 分50步移动
+            # 分50步进行相对移动
             steps = 50
             step_delay = duration / steps
 
             for i in range(1, steps + 1):
-                # 计算当前步骤的目标位置
-                step_x = int(current_x + (delta_x * i / steps))
-                step_y = int(current_y + (delta_y * i / steps))
+                # 计算每步的相对移动距离
+                step_delta_x = int(delta_x / steps)
+                step_delta_y = int(delta_y / steps)
 
-                # 转换为绝对坐标（0-65535范围）
-                abs_x = int(step_x * 65535 / screen_width)
-                abs_y = int(step_y * 65535 / screen_height)
-
-                # 使用ctypes的mouse_event进行绝对移动
+                # 使用相对移动（避免欧拉角死锁）
                 ctypes.windll.user32.mouse_event(
-                    MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
-                    abs_x,
-                    abs_y,
+                    MOUSEEVENTF_MOVE,
+                    step_delta_x,
+                    step_delta_y,
                     0,
                     0
                 )
 
                 time.sleep(step_delay)
 
-            print(f"[鼠标移动] 像素平移模式: ({current_x}, {current_y}) -> ({target_x}, {target_y})")
+            print(f"[鼠标移动] 像素平移模式(相对移动): 相对位移({delta_x}, {delta_y})px")
 
         except Exception as e:
             print(f"鼠标移动失败: {e}")
@@ -242,17 +233,12 @@ class ScreenDetector:
             self._move_mouse_pixel_based(target_x, target_y, duration)
             return
 
-        # 角度模式（原有逻辑）
+        # 角度模式（使用相对移动）
         try:
             import math
 
-            # 定义鼠标事件常量
+            # 定义鼠标事件常量（相对移动）
             MOUSEEVENTF_MOVE = 0x0001
-            MOUSEEVENTF_ABSOLUTE = 0x8000
-
-            # 获取屏幕尺寸
-            screen_width = ctypes.windll.user32.GetSystemMetrics(0)
-            screen_height = ctypes.windll.user32.GetSystemMetrics(1)
 
             # 获取当前鼠标位置
             current_x, current_y = pyautogui.position()
@@ -279,39 +265,30 @@ class ScreenDetector:
             if delta_y_pixel < 0:
                 adjusted_delta_y = -adjusted_delta_y
 
-            # 计算最终目标位置
-            final_target_x = int(current_x + adjusted_delta_x)
-            final_target_y = int(current_y + adjusted_delta_y)
-
-            # 分50步移动
+            # 分50步进行相对移动
             steps = 50
-            step_delay = duration / steps  # 每步之间的延迟
+            step_delay = duration / steps
 
             for i in range(1, steps + 1):
-                # 计算当前步骤的目标位置
-                step_x = int(current_x + (adjusted_delta_x * i / steps))
-                step_y = int(current_y + (adjusted_delta_y * i / steps))
+                # 计算每步的相对移动距离
+                step_delta_x = int(adjusted_delta_x / steps)
+                step_delta_y = int(adjusted_delta_y / steps)
 
-                # 转换为绝对坐标（0-65535范围）
-                abs_x = int(step_x * 65535 / screen_width)
-                abs_y = int(step_y * 65535 / screen_height)
-
-                # 使用ctypes的mouse_event进行绝对移动
+                # 使用相对移动（避免欧拉角死锁）
                 ctypes.windll.user32.mouse_event(
-                    MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
-                    abs_x,
-                    abs_y,
+                    MOUSEEVENTF_MOVE,
+                    step_delta_x,
+                    step_delta_y,
                     0,
                     0
                 )
-
-                # 微秒级延迟
+                #print(f"-> 相对位移({step_delta_x:.0f}, {step_delta_y:.0f})px")
                 time.sleep(step_delay)
 
-            print(f"[鼠标移动] 基于角度校准移动: 像素({delta_x_pixel:.0f}, {delta_y_pixel:.0f}) "
+            print(f"[鼠标移动] 角度模式(相对移动): 像素({delta_x_pixel:.0f}, {delta_y_pixel:.0f}) "
                   f"-> 角度({angle_x:.2f}°, {angle_y:.2f}°) "
-                  f"-> 调整后({adjusted_angle_x:.2f}°, {adjusted_angle_y:.2f}°) "
-                  f"-> 最终位置({final_target_x}, {final_target_y})")
+                  f"-> 调整({adjusted_angle_x:.2f}°, {adjusted_angle_y:.2f}°) "
+                  f"-> 相对位移({adjusted_delta_x:.0f}, {adjusted_delta_y:.0f})px")
 
         except Exception as e:
             print(f"鼠标移动失败: {e}")
