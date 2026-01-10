@@ -1,5 +1,5 @@
-
 import os
+
 
 def main():
     """主函数"""
@@ -30,7 +30,8 @@ def main():
     detector = ScreenDetector(
         model_name=model_name,
         model_dir=model_dirs,
-        detect_classes=detect_classes  # 传入要检测的类别
+        detect_classes=detect_classes,  # 传入要检测的类别
+        use_angle_based_move=True
     )
     # 运行检测
     # conf_threshold: 置信度阈值 (0.0-1.0)，越高越严格
@@ -52,7 +53,6 @@ def main():
 16: dog (狗)
 17: cat (猫)
 """
-
 
 if __name__ == '__main__':
     main()

@@ -12,12 +12,13 @@ import json
 
 class ScreenDetector:
 
-    def __init__(self, model_name='yolov8n.pt', model_dir='./models', detect_classes=None):
+    def __init__(self, model_name='yolov8n.pt', model_dir='./models', detect_classes=None, use_angle_based_move=True):
         """
         初始化屏幕检测器
         :param model_name: YOLO模型名称，默认使用yolov8n（最快的模型）
         :param model_dir: 模型保存目录，默认为 ./models
         :param detect_classes: 要检测的类别列表，None表示检测所有类别，[0]表示只检测person
+        :param use_angle_based_move: 是否使用基于角度的移动（True=角度模式，False=直接像素平移）
         """
         # 创建模型目录
         self.model_dir = Path(model_dir)
@@ -61,11 +62,19 @@ class ScreenDetector:
         pyautogui.PAUSE = 0
         pyautogui.FAILSAFE = False
 
+        # 移动模式开关
+        self.use_angle_based_move = use_angle_based_move
+
         # 加载灵敏度配置
         self.load_sensitivity_config()
-        print(f"角度比例: {self.angle_ratio:.4f}")
-        print(f"FOV: {self.fov}°")
-        print(f"m_yaw: {self.m_yaw}")
+
+        # 显示配置信息
+        move_mode = "角度模式" if self.use_angle_based_move else "像素平移模式"
+        print(f"移动模式: {move_mode}")
+        if self.use_angle_based_move:
+            print(f"角度比例: {self.angle_ratio:.4f}")
+            print(f"FOV: {self.fov}°")
+            print(f"m_yaw: {self.m_yaw}")
 
     def load_sensitivity_config(self):
         """
@@ -166,14 +175,74 @@ class ScreenDetector:
         img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
         return img
 
-    def smooth_move_mouse(self, target_x, target_y, duration=0.3):
+    def _move_mouse_pixel_based(self, target_x, target_y, duration=0.3):
         """
-        平滑移动鼠标到目标位置（基于FOV角度校准）
-        使用ctypes的mouse_event进行相对移动，分50步移动
+        直接像素平移模式（不使用角度校准）
         :param target_x: 目标X坐标
         :param target_y: 目标Y坐标
         :param duration: 移动持续时间（秒）
         """
+        try:
+            # 定义鼠标事件常量
+            MOUSEEVENTF_MOVE = 0x0001
+            MOUSEEVENTF_ABSOLUTE = 0x8000
+
+            # 获取屏幕尺寸
+            screen_width = ctypes.windll.user32.GetSystemMetrics(0)
+            screen_height = ctypes.windll.user32.GetSystemMetrics(1)
+
+            # 获取当前鼠标位置
+            current_x, current_y = pyautogui.position()
+
+            # 计算移动距离（直接像素）
+            delta_x = target_x - current_x
+            delta_y = target_y - current_y
+
+            # 分50步移动
+            steps = 50
+            step_delay = duration / steps
+
+            for i in range(1, steps + 1):
+                # 计算当前步骤的目标位置
+                step_x = int(current_x + (delta_x * i / steps))
+                step_y = int(current_y + (delta_y * i / steps))
+
+                # 转换为绝对坐标（0-65535范围）
+                abs_x = int(step_x * 65535 / screen_width)
+                abs_y = int(step_y * 65535 / screen_height)
+
+                # 使用ctypes的mouse_event进行绝对移动
+                ctypes.windll.user32.mouse_event(
+                    MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
+                    abs_x,
+                    abs_y,
+                    0,
+                    0
+                )
+
+                time.sleep(step_delay)
+
+            print(f"[鼠标移动] 像素平移模式: ({current_x}, {current_y}) -> ({target_x}, {target_y})")
+
+        except Exception as e:
+            print(f"鼠标移动失败: {e}")
+
+    def smooth_move_mouse(self, target_x, target_y, duration=0.3):
+        """
+        平滑移动鼠标到目标位置（支持两种模式）
+        - 角度模式：基于FOV角度校准，与目标距离无关
+        - 像素平移模式：直接像素移动，不使用角度校准
+        :param target_x: 目标X坐标
+        :param target_y: 目标Y坐标
+        :param duration: 移动持续时间（秒）
+        """
+        # 根据开关选择移动模式
+        if not self.use_angle_based_move:
+            # 像素平移模式
+            self._move_mouse_pixel_based(target_x, target_y, duration)
+            return
+
+        # 角度模式（原有逻辑）
         try:
             import math
 
@@ -352,7 +421,7 @@ class ScreenDetector:
             extended_y2 = box_y2 + self.target_range_threshold
 
             if (extended_x1 <= current_mouse_x <= extended_x2 and
-                extended_y1 <= current_mouse_y <= extended_y2):
+                    extended_y1 <= current_mouse_y <= extended_y2):
                 self.mouse_in_target_range = True
                 print(f"  [判断] ✓ 鼠标在目标范围内")
             else:
@@ -369,7 +438,7 @@ class ScreenDetector:
                     # 移动后重新检查
                     current_mouse_x, current_mouse_y = pyautogui.position()
                     if (extended_x1 <= current_mouse_x <= extended_x2 and
-                        extended_y1 <= current_mouse_y <= extended_y2):
+                            extended_y1 <= current_mouse_y <= extended_y2):
                         self.mouse_in_target_range = True
                         print(f"  [自动移动] ✓ 鼠标已移动到目标范围内")
                     else:
