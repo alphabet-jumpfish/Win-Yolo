@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import pyautogui
 import ctypes
+import json
 
 
 class ScreenDetector:
@@ -60,6 +61,74 @@ class ScreenDetector:
         pyautogui.PAUSE = 0
         pyautogui.FAILSAFE = False
 
+        # 加载灵敏度配置
+        self.load_sensitivity_config()
+        print(f"角度比例: {self.angle_ratio:.4f}")
+        print(f"FOV: {self.fov}°")
+        print(f"m_yaw: {self.m_yaw}")
+
+    def load_sensitivity_config(self):
+        """
+        加载灵敏度配置文件（基于FOV的角度校准）
+        """
+        config_file = Path("sensitivity_config.json")
+
+        if not config_file.exists():
+            print("未找到灵敏度配置文件，使用默认值")
+            print("提示: 运行 CalibrateMain.py 进行校准")
+            self.angle_ratio = 1.0
+            self.fov = 90.0
+            self.m_yaw = 0.022
+            self.focal_length = self._calculate_focal_length(self.fov)
+            return
+
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+
+            self.angle_ratio = config.get('angle_ratio', 1.0)
+            self.fov = config.get('fov', 90.0)
+            self.m_yaw = config.get('m_yaw', 0.022)
+            self.focal_length = config.get('focal_length', self._calculate_focal_length(self.fov))
+
+            print(f"✓ 已加载灵敏度配置")
+        except Exception as e:
+            print(f"✗ 加载配置失败: {e}，使用默认值")
+            self.angle_ratio = 1.0
+            self.fov = 90.0
+            self.m_yaw = 0.022
+            self.focal_length = self._calculate_focal_length(self.fov)
+
+    def _calculate_focal_length(self, fov):
+        """
+        计算焦距系数
+        公式: f = (W/2) / tan(HFOV/2)
+        """
+        import math
+        screen_width = ctypes.windll.user32.GetSystemMetrics(0)
+        hfov_rad = math.radians(fov / 2)
+        return (screen_width / 2) / math.tan(hfov_rad)
+
+    def pixel_to_angle(self, pixel_distance):
+        """
+        将像素距离转换为视角角度（度）
+        公式: θ = arctan(Δpixel / f)
+        """
+        import math
+        angle_rad = math.atan(pixel_distance / self.focal_length)
+        angle_deg = math.degrees(angle_rad)
+        return angle_deg
+
+    def angle_to_pixel(self, angle_deg):
+        """
+        将角度转换为像素距离
+        公式: Δpixel = f × tan(θ)
+        """
+        import math
+        angle_rad = math.radians(angle_deg)
+        pixel_distance = self.focal_length * math.tan(angle_rad)
+        return pixel_distance
+
     def mouse_click(self):
         """
         使用ctypes执行鼠标左键点击
@@ -99,13 +168,15 @@ class ScreenDetector:
 
     def smooth_move_mouse(self, target_x, target_y, duration=0.3):
         """
-        平滑移动鼠标到目标位置
-        使用ctypes的mouse_event进行相对移动，分5次移动
+        平滑移动鼠标到目标位置（基于FOV角度校准）
+        使用ctypes的mouse_event进行相对移动，分50步移动
         :param target_x: 目标X坐标
         :param target_y: 目标Y坐标
         :param duration: 移动持续时间（秒）
         """
         try:
+            import math
+
             # 定义鼠标事件常量
             MOUSEEVENTF_MOVE = 0x0001
             MOUSEEVENTF_ABSOLUTE = 0x8000
@@ -117,18 +188,40 @@ class ScreenDetector:
             # 获取当前鼠标位置
             current_x, current_y = pyautogui.position()
 
-            # 计算移动距离
-            delta_x = target_x - current_x
-            delta_y = target_y - current_y
+            # 计算像素距离
+            delta_x_pixel = target_x - current_x
+            delta_y_pixel = target_y - current_y
 
-            # 分5步移动
-            steps = 5
+            # 将像素距离转换为角度
+            angle_x = self.pixel_to_angle(abs(delta_x_pixel))
+            angle_y = self.pixel_to_angle(abs(delta_y_pixel))
+
+            # 应用角度比例系数
+            adjusted_angle_x = angle_x * self.angle_ratio
+            adjusted_angle_y = angle_y * self.angle_ratio
+
+            # 将调整后的角度转换回像素
+            adjusted_delta_x = self.angle_to_pixel(adjusted_angle_x)
+            adjusted_delta_y = self.angle_to_pixel(adjusted_angle_y)
+
+            # 保持方向
+            if delta_x_pixel < 0:
+                adjusted_delta_x = -adjusted_delta_x
+            if delta_y_pixel < 0:
+                adjusted_delta_y = -adjusted_delta_y
+
+            # 计算最终目标位置
+            final_target_x = int(current_x + adjusted_delta_x)
+            final_target_y = int(current_y + adjusted_delta_y)
+
+            # 分50步移动
+            steps = 50
             step_delay = duration / steps  # 每步之间的延迟
 
             for i in range(1, steps + 1):
                 # 计算当前步骤的目标位置
-                step_x = int(current_x + (delta_x * i / steps))
-                step_y = int(current_y + (delta_y * i / steps))
+                step_x = int(current_x + (adjusted_delta_x * i / steps))
+                step_y = int(current_y + (adjusted_delta_y * i / steps))
 
                 # 转换为绝对坐标（0-65535范围）
                 abs_x = int(step_x * 65535 / screen_width)
@@ -146,7 +239,10 @@ class ScreenDetector:
                 # 微秒级延迟
                 time.sleep(step_delay)
 
-            print(f"[鼠标移动检查] 使用ctypes mouse_event分5步移动到 ({target_x}, {target_y})")
+            print(f"[鼠标移动] 基于角度校准移动: 像素({delta_x_pixel:.0f}, {delta_y_pixel:.0f}) "
+                  f"-> 角度({angle_x:.2f}°, {angle_y:.2f}°) "
+                  f"-> 调整后({adjusted_angle_x:.2f}°, {adjusted_angle_y:.2f}°) "
+                  f"-> 最终位置({final_target_x}, {final_target_y})")
 
         except Exception as e:
             print(f"鼠标移动失败: {e}")
