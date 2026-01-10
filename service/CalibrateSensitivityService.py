@@ -48,7 +48,7 @@ class SensitivityCalibrator:
         self.focal_length = (self.screen_width / 2) / math.tan(hfov_rad)
 
         # 测试参数
-        self.test_distances = [30, 50, 100]  # 测试的像素距离
+        self.test_distances = [50, 100, 150]  # 测试的像素距离
         self.calibration_results = []
 
         # 历史测试结果（用于综合测试）
@@ -77,10 +77,10 @@ class SensitivityCalibrator:
         print("  开始！    ")
 
     def smooth_move_mouse(self, target_x, target_y, duration=0.3):
-        """平滑移动鼠标"""
+        """平滑移动鼠标（使用相对移动，避免欧拉角死锁）"""
         try:
+            # 只使用相对移动标志
             MOUSEEVENTF_MOVE = 0x0001
-            MOUSEEVENTF_ABSOLUTE = 0x8000
 
             current_x, current_y = pyautogui.position()
             delta_x = target_x - current_x
@@ -90,15 +90,17 @@ class SensitivityCalibrator:
             step_delay = duration / steps
 
             for i in range(1, steps + 1):
-                step_x = int(current_x + (delta_x * i / steps))
-                step_y = int(current_y + (delta_y * i / steps))
+                # 计算每步的相对移动距离
+                step_delta_x = int(delta_x / steps)
+                step_delta_y = int(delta_y / steps)
 
-                abs_x = int(step_x * 65535 / self.screen_width)
-                abs_y = int(step_y * 65535 / self.screen_height)
-
+                # 使用相对移动（避免欧拉角死锁和视角畸变）
                 ctypes.windll.user32.mouse_event(
-                    MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
-                    abs_x, abs_y, 0, 0
+                    MOUSEEVENTF_MOVE,
+                    step_delta_x,
+                    step_delta_y,
+                    0,
+                    0
                 )
                 time.sleep(step_delay)
 

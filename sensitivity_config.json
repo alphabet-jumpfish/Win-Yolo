@@ -1,27 +1,34 @@
 {
-    "angle_ratio": 0.7299556357469347,
+    "angle_ratio": 0.03014136320941856,
     "fov": 103.0,
     "m_yaw": 3.22,
     "screen_width": 2048,
     "screen_height": 1152,
     "focal_length": 814.5263786678564,
-    "calibration_date": "2026-01-11 00:03:43",
+    "calibration_date": "2026-01-11 00:39:47",
     "test_results": [
         {
-            "screen_pixels": 200,
-            "screen_angle": 13.795563913673838,
-            "actual_pixels": 288,
-            "actual_angle": 19.472561012465736,
-            "angle_ratio": 1.411508883168233
+            "screen_pixels": 50,
+            "screen_angle": 3.512714668838371,
+            "actual_pixels": 2,
+            "actual_angle": 0.14068461345750408,
+            "angle_ratio": 0.04005011130153291
         },
         {
-            "screen_pixels": 400,
-            "screen_angle": 26.1548666872342,
-            "actual_pixels": 18,
-            "actual_angle": 1.26595801400076,
-            "angle_ratio": 0.04840238832563636
+            "screen_pixels": 100,
+            "screen_angle": 6.999219446685429,
+            "actual_pixels": 3,
+            "actual_angle": 0.21102639006884297,
+            "angle_ratio": 0.030149989106110574
+        },
+        {
+            "screen_pixels": 150,
+            "screen_angle": 10.434459184430626,
+            "actual_pixels": 3,
+            "actual_angle": 0.21102639006884297,
+            "angle_ratio": 0.020223989220612203
         }
     ],
-    "total_tests": 2,
+    "total_tests": 3,
     "description": "基于FOV的角度校准，与目标距离无关"
 }
