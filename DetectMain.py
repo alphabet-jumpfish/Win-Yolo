@@ -35,7 +35,7 @@ def main():
     # 运行检测
     # conf_threshold: 置信度阈值 (0.0-1.0)，越高越严格
     # display_scale: 显示窗口缩放比例，避免窗口过大
-    detector.run(conf_threshold=0.5, display_scale=0.6)
+    detector.run(conf_threshold=0.6, display_scale=0.6)
 
 
 # COCO 数据集类别列表（YOLO 预训练模型支持的 80 个类别）
