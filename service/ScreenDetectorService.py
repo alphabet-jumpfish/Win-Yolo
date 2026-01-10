@@ -6,6 +6,7 @@ import time
 import os
 from pathlib import Path
 import pyautogui
+import ctypes
 
 
 class ScreenDetector:
@@ -59,6 +60,34 @@ class ScreenDetector:
         pyautogui.PAUSE = 0
         pyautogui.FAILSAFE = False
 
+    def mouse_click(self):
+        """
+        使用ctypes执行鼠标左键点击
+        """
+        try:
+            # 定义鼠标事件常量
+            MOUSEEVENTF_LEFTDOWN = 0x0002
+            MOUSEEVENTF_LEFTUP = 0x0004
+
+            # 按下左键
+            ctypes.windll.user32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+            # 释放左键
+            ctypes.windll.user32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+
+            print("[鼠标点击] 使用ctypes执行点击")
+        except Exception as e:
+            print(f"[鼠标点击] 点击失败: {e}")
+
+    def fire(self):
+        """
+        开火方法 - 执行鼠标点击
+        """
+        try:
+            self.mouse_click()
+            print("[开火] ✓ 开火！")
+        except Exception as e:
+            print(f"[开火] ✗ 开火失败: {e}")
+
     def capture_screen(self):
         """捕获屏幕截图"""
         screenshot = self.sct.grab(self.monitor)
@@ -71,25 +100,35 @@ class ScreenDetector:
     def smooth_move_mouse(self, target_x, target_y, duration=0.3):
         """
         平滑移动鼠标到目标位置
-        使用多种方法确保在游戏中也能工作
+        使用ctypes分5次移动，配合微秒级延迟
         :param target_x: 目标X坐标
         :param target_y: 目标Y坐标
         :param duration: 移动持续时间（秒）
         """
         try:
-            # 方法1：使用 pyautogui（适用于大多数应用）
-            pyautogui.moveTo(target_x, target_y, duration=duration, tween=pyautogui.easeInOutQuad)
-            print("[鼠标移动检查] 鼠标使用pyautogui")
+            # 获取当前鼠标位置
+            current_x, current_y = pyautogui.position()
 
-            # 方法2：使用 win32api（适用于游戏）
-            try:
-                import win32api
-                import win32con
-                # 直接设置鼠标位置
-                win32api.SetCursorPos((target_x, target_y))
-                print("[鼠标移动检查] 鼠标使用win32api")
-            except ImportError:
-                pass  # 如果没有安装 win32api，跳过
+            # 计算移动距离
+            delta_x = target_x - current_x
+            delta_y = target_y - current_y
+
+            # 分5步移动
+            steps = 5
+            step_delay = duration / steps  # 每步之间的延迟
+
+            for i in range(1, steps + 1):
+                # 计算当前步骤的目标位置
+                step_x = int(current_x + (delta_x * i / steps))
+                step_y = int(current_y + (delta_y * i / steps))
+
+                # 使用ctypes设置鼠标位置
+                ctypes.windll.user32.SetCursorPos(step_x, step_y)
+
+                # 微秒级延迟
+                time.sleep(step_delay)
+
+            print(f"[鼠标移动检查] 使用ctypes分5步移动到 ({target_x}, {target_y})")
 
         except Exception as e:
             print(f"鼠标移动失败: {e}")
@@ -119,12 +158,9 @@ class ScreenDetector:
         fire_interval = 1.0 / self.fire_rate  # 计算开火间隔
 
         if current_time - self.last_fire_time >= fire_interval:
-            try:
-                pyautogui.click()
-                self.last_fire_time = current_time
-                print("[自动开火] ✓ 开火！")
-            except Exception as e:
-                print(f"[自动开火] ✗ 开火失败: {e}")
+            # 调用公共的开火方法
+            self.fire()
+            self.last_fire_time = current_time
 
     def detect_objects(self, img, conf_threshold=0.5):
         """
