@@ -16,6 +16,23 @@ class YoloImageLableService:
         self.val_images_dir = val_images_dir
         self.val_labels_dir = val_labels_dir
 
+    @staticmethod
+    def imread_chinese(image_path):
+        """
+        读取包含中文路径的图片
+        :param image_path: 图片路径
+        :return: 图片数组，如果读取失败返回None
+        """
+        try:
+            # 使用numpy读取文件，避免中文路径问题
+            with open(str(image_path), 'rb') as f:
+                data = np.frombuffer(f.read(), dtype=np.uint8)
+                img = cv2.imdecode(data, cv2.IMREAD_COLOR)
+                return img
+        except Exception as e:
+            print(f"读取图片失败: {image_path}, 错误: {e}")
+            return None
+
     def convert_red_boxes_to_yolo_labels(self, min_box_size=20, target_class_id=0):
         """
         将图像中的红色框框转换为YOLO格式标签
@@ -32,7 +49,7 @@ class YoloImageLableService:
         total_boxes = 0
         for img_path in image_files:
             # 读取图像获取尺寸
-            img = cv2.imread(str(img_path))
+            img = self.imread_chinese(img_path)
             if img is None:
                 continue
             height, width = img.shape[:2]
@@ -65,7 +82,7 @@ class YoloImageLableService:
         :return: 检测到的边界框列表 [(x1, y1, x2, y2), ...]
         """
         # 读取图像
-        img = cv2.imread(str(image_path))
+        img = self.imread_chinese(image_path)
         if img is None:
             return []
 

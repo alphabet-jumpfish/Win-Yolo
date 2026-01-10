@@ -151,7 +151,7 @@ class YOLOTrainer:
         return results
 
     def train_with_red_box_annotations(self, epochs=50, val_ratio=0.2, imgsz=640, batch=16, device='cpu',
-                                       class_names=None, keep_base_classes=False):
+                                       class_names=None, keep_base_classes=False, label_img_target=True):
         """
         使用红色框框标注的数据进行完整训练流程
         :param epochs: 训练轮数
@@ -161,6 +161,7 @@ class YOLOTrainer:
         :param device: 设备 ('cpu' 或 'cuda')
         :param class_names: 类别名称列表，例如 ['person'] 或 ['enemy', 'ally']
         :param keep_base_classes: 是否保留基础模型的原有类别（默认False）
+        :param label_img_target : false 使用自有方法 true 使用labelImg工具生成
         """
         print("=" * 60)
         print("开始使用红色框框标注数据的训练流程")
@@ -188,8 +189,11 @@ class YOLOTrainer:
 
         # 步骤1: 从红色框框生成YOLO标签
         print("\n步骤 1/4: 从红色框框生成YOLO标签")
-        # TODO 还需优化 没法很准确的生成
-        self.images_label_service.convert_red_boxes_to_yolo_labels(target_class_id=new_class_start_id)
+        if label_img_target:
+            input("\n按 Enter 键继续（确保已放入通过labelImg工具完成标注好的图像）...")
+        else:
+            print("\n步骤 1/4: images_label_service 红色框框生成YOLO标签")
+            self.images_label_service.convert_red_boxes_to_yolo_labels(target_class_id=new_class_start_id)
 
         # 步骤2: 分割数据集
         print("\n步骤 2/4: 分割数据集")
